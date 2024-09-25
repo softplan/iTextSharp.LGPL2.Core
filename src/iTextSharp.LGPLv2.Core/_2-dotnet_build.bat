@@ -1,0 +1,2 @@
+dotnet watch build
+pause
