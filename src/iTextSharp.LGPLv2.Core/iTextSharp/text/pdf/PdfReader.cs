@@ -2482,10 +2482,13 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
             {
                 if (!hits[k])
                 {
-                    Xref[k * 2] = -1;
-                    Xref[k * 2 + 1] = 0;
-                    _xrefObj[k] = null;
-                    ++total;
+                    if (k * 2 < Xref.Length && k * 2 + 1 < Xref.Length)
+                    {
+                        Xref[k * 2] = -1;
+                        Xref[k * 2 + 1] = 0;
+                        _xrefObj[k] = null;
+                        ++total;
+                    }
                 }
             }
         }
@@ -4145,7 +4148,7 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
                         var refi = (PrIndirectReference)obj;
                         var num = refi.Number;
 
-                        if (num > 0 && !hits[num])
+                        if (num > 0 && num < _xrefObj.Count && !hits[num])
                         {
                             hits[num] = true;
                             state.Push(GetPdfObjectRelease(refi));
