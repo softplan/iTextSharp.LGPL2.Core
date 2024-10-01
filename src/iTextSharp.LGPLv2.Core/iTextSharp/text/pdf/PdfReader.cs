@@ -3014,7 +3014,7 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
 
             if (Tokens.TokenType != PrTokeniser.TK_NUMBER)
             {
-                Tokens.ThrowError("Invalid object number.");
+                continue;
             }
 
             _objNum = Tokens.IntValue;
@@ -3022,7 +3022,7 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
 
             if (Tokens.TokenType != PrTokeniser.TK_NUMBER)
             {
-                Tokens.ThrowError("Invalid generation number.");
+                continue;
             }
 
             _objGen = Tokens.IntValue;
@@ -3030,7 +3030,7 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
 
             if (!Tokens.StringValue.Equals("obj", StringComparison.Ordinal))
             {
-                Tokens.ThrowError("Token 'obj' expected.");
+                continue;
             }
 
             PdfObject obj;
@@ -3279,12 +3279,9 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
     {
         var type = _rootPages.Get(PdfName.TYPE);
         var types = _rootPages.Get(PdfName.TYPES);
-        
-        return PdfName.Pages.Equals(type) || PdfName.Pages.Equals(types) || IsSimplifiedPageDictionaryRootPage();
-    }
 
-    private bool IsSimplifiedPageDictionaryRootPage() =>
-        _rootPages.Get(PdfName.Kids) != null;
+        return PdfName.Pages.Equals(type) || PdfName.Pages.Equals(types);
+    }
 
     protected internal virtual void ReadPdf()
     {
@@ -3932,6 +3929,11 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
 
                 if (Xref[baseb] == 0 && Xref[baseb + 1] == 0)
                 {
+                    if (baseb == 2894)
+                    {
+                        // Adicione aqui a lógica de validação que você deseja
+                        
+                    }
                     switch (type)
                     {
                         case 0:

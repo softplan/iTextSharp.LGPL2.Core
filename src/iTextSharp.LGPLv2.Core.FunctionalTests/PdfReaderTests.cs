@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using iTextSharp.text;
 using iTextSharp.text.pdf;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -138,5 +141,88 @@ public class PdfReaderTests
         }
 
         TestUtils.VerifyPdfFileIsReadable(pdfFilePath);
+    }
+
+    [TestMethod]
+    public async Task DeveAbrirODocumentoEExtrairAssinaturasEQuebrarEmPaginasComSucesso()
+    {
+        try
+        {
+            var caminhoPdf = TestUtils.GetPdfsPath("pdf_com_imagem_corrompida.pdf");
+            var reader = new PdfReader(caminhoPdf);
+            ExtractSignatures(reader);
+            await IterarPelasPaginasAsync(reader);
+        }
+        catch (Exception ex)
+        {
+            Assert.Fail($"Ocorreu um erro: {ex.Message}");
+        }
+    }
+    
+    protected async Task IterarPelasPaginasAsync(PdfReader reader)
+    {
+            foreach (var numberOfPage in Enumerable.Range(1, reader.NumberOfPages).ToList())
+            {
+                var paginaTempFile = Path.GetTempFileName();
+                try
+                {
+                    await GetPageAsync(reader, numberOfPage, paginaTempFile);
+                }
+                finally
+                {
+                    if(File.Exists(paginaTempFile)) File.Delete(paginaTempFile);
+                }
+            }
+    }
+    
+    public async Task GetPageAsync(PdfReader reader,int pageNumber, string fileName)
+    {
+        using (FileStream fileStream = File.Create(fileName))
+            await this.InternalGetPageAsync(reader, pageNumber, fileStream);
+    }
+    
+    private Task InternalGetPageAsync(PdfReader reader,int pageNumber, Stream stream)
+    {
+        return Task.Run((Action) (() =>
+        {
+            Document document = new Document();
+            PdfCopy pdfCopy = new PdfCopy(document, stream)
+            {
+                PdfVersion = reader.PdfVersion
+            };
+            PdfImportedPage importedPage = pdfCopy.GetImportedPage(reader, pageNumber);
+            document.Open();
+            pdfCopy.AddPage(importedPage);
+            document.Close();
+        }));
+    }
+
+    public static List<Dictionary<string, string>> ExtractSignatures(PdfReader reader)
+    {
+        var signatures = new List<Dictionary<string, string>>();
+
+        {
+            var acroFields = reader.AcroFields;
+            var signatureNames = acroFields.GetSignatureNames();
+
+            foreach (var name in signatureNames)
+            {
+                var pkcs7 = acroFields.VerifySignature(name);
+                var signatureData = new Dictionary<string, string>
+                {
+                    { "SignName", pkcs7.SignName },
+                    { "Reason", pkcs7.Reason },
+                    { "Location", pkcs7.Location },
+                    { "SignDate", pkcs7.SignDate.ToString(CultureInfo.InvariantCulture) },
+                    { "Subject", pkcs7.SigningCertificate.SubjectDN.ToString() },
+                    { "Issuer", pkcs7.SigningCertificate.IssuerDN.ToString() },
+                    { "SerialNumber", pkcs7.SigningCertificate.SerialNumber.ToString() }
+                };
+
+                signatures.Add(signatureData);
+            }
+
+            return signatures;
+        }
     }
 }
