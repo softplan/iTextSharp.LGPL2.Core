@@ -2480,15 +2480,12 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
         {
             for (var k = 1; k < hits.Length; ++k)
             {
-                if (!hits[k])
+                if (!hits[k] && k * 2 + 1 < Xref.Length)
                 {
-                    if (k * 2 < Xref.Length && k * 2 + 1 < Xref.Length)
-                    {
-                        Xref[k * 2] = -1;
-                        Xref[k * 2 + 1] = 0;
-                        _xrefObj[k] = null;
-                        ++total;
-                    }
+                    Xref[k * 2] = -1;
+                    Xref[k * 2 + 1] = 0;
+                    _xrefObj[k] = null;
+                    ++total;
                 }
             }
         }
