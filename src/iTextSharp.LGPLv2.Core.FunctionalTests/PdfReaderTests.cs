@@ -146,17 +146,10 @@ public class PdfReaderTests
     [TestMethod]
     public async Task DeveAbrirODocumentoEExtrairAssinaturasEQuebrarEmPaginasComSucesso()
     {
-        try
-        {
-            var caminhoPdf = TestUtils.GetPdfsPath("pdf_com_imagem_corrompida.pdf");
-            var reader = new PdfReader(caminhoPdf);
-            ExtractSignatures(reader);
-            await IterarPelasPaginasAsync(reader);
-        }
-        catch (Exception ex)
-        {
-            Assert.Fail($"Ocorreu um erro: {ex.Message}");
-        }
+        var caminhoPdf = TestUtils.GetPdfsPath("pdf_com_imagem_corrompida.pdf");
+        var reader = new PdfReader(caminhoPdf);
+        ExtractSignatures(reader);
+        await IterarPelasPaginasAsync(reader);
     }
     
     protected async Task IterarPelasPaginasAsync(PdfReader reader)
