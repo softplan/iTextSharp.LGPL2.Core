@@ -2480,7 +2480,7 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
         {
             for (var k = 1; k < hits.Length; ++k)
             {
-                if (!hits[k])
+                if (!hits[k] && k * 2 + 1 < Xref.Length)
                 {
                     Xref[k * 2] = -1;
                     Xref[k * 2 + 1] = 0;
@@ -4142,7 +4142,7 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
                         var refi = (PrIndirectReference)obj;
                         var num = refi.Number;
 
-                        if (num > 0 && !hits[num])
+                        if (num > 0 && num < _xrefObj.Count && !hits[num])
                         {
                             hits[num] = true;
                             state.Push(GetPdfObjectRelease(refi));
