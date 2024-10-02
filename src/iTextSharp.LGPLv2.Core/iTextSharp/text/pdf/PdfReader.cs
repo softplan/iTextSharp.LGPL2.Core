@@ -3929,11 +3929,6 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
 
                 if (Xref[baseb] == 0 && Xref[baseb + 1] == 0)
                 {
-                    if (baseb == 2894)
-                    {
-                        // Adicione aqui a lógica de validação que você deseja
-                        
-                    }
                     switch (type)
                     {
                         case 0:
