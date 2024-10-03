@@ -7,7 +7,7 @@
         <TargetFrameworks>netstandard2.0;net462;</TargetFrameworks>
         <NoWarn>$(NoWarn);1591</NoWarn>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <AssemblyName>iTextSharp.LGPLv2.Core</AssemblyName>
+        <AssemblyName>Softplan.iTextSharp.LGPLv2.Core</AssemblyName>
         <PackageId>iTextSharp.LGPLv2.Core</PackageId>
         <PackageTags>PdfReport;Excel;Export;iTextSharp;PDF;Report;Reporting;Persian;.NET Core;aspnetcore</PackageTags>
         <PackageProjectUrl>https://github.com/VahidN/iTextSharp.LGPLv2.Core</PackageProjectUrl>
