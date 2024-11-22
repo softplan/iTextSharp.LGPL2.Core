@@ -144,9 +144,11 @@ public class PdfReaderTests
     }
 
     [TestMethod]
-    public async Task DeveAbrirODocumentoEExtrairAssinaturasEQuebrarEmPaginasComSucesso()
+    [DataRow("pdf_com_imagem_corrompida.pdf")]
+    [DataRow("issue81.pdf")]
+    public async Task DeveAbrirODocumentoEExtrairAssinaturasEQuebrarEmPaginasComSucesso(string fileName)
     {
-        var caminhoPdf = TestUtils.GetPdfsPath("pdf_com_imagem_corrompida.pdf");
+        var caminhoPdf = TestUtils.GetPdfsPath(fileName);
         var reader = new PdfReader(caminhoPdf);
         ExtractSignatures(reader);
         await IterarPelasPaginasAsync(reader);
