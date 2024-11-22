@@ -144,14 +144,15 @@ public class PdfReaderTests
     }
 
     [TestMethod]
-    [DataRow("pdf_com_imagem_corrompida.pdf")]
-    [DataRow("issue81.pdf")]
-    public async Task DeveAbrirODocumentoEExtrairAssinaturasEQuebrarEmPaginasComSucesso(string fileName)
+    [DataRow("pdf_com_imagem_corrompida.pdf", 6)]
+    [DataRow("issue81.pdf", 1)]
+    public async Task DeveAbrirODocumentoEExtrairAssinaturasEQuebrarEmPaginasComSucesso(string fileName, int numberPages)
     {
         var caminhoPdf = TestUtils.GetPdfsPath(fileName);
         var reader = new PdfReader(caminhoPdf);
         ExtractSignatures(reader);
         await IterarPelasPaginasAsync(reader);
+        Assert.AreEqual(numberPages, reader.NumberOfPages);
     }
     
     protected async Task IterarPelasPaginasAsync(PdfReader reader)
