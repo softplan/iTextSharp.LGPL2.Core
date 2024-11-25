@@ -3267,20 +3267,12 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
 
         _rootPages = catalog.GetAsDict(PdfName.Pages);
 
-        if (_rootPages == null || !HasRootPage())
+        if (_rootPages == null)
         {
             throw new InvalidPdfException("This invalid PDF file doesn't have a page root.");
         }
 
         pageRefs = new PageRefs(this);
-    }
-
-    private bool HasRootPage()
-    {
-        var type = _rootPages.Get(PdfName.TYPE);
-        var types = _rootPages.Get(PdfName.TYPES);
-
-        return PdfName.Pages.Equals(type) || PdfName.Pages.Equals(types);
     }
 
     protected internal virtual void ReadPdf()
