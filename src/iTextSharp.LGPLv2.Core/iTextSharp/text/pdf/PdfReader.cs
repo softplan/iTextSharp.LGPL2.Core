@@ -1717,6 +1717,8 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
 
                 for (var j = 0; j < array.Size; ++j)
                 {
+                    if (array[j] == null || array[j] == PdfNull.Pdfnull) continue;
+                    
                     var refi = (PrIndirectReference)array[j];
 
                     if (visited.ContainsKey(refi.Number))
@@ -1729,6 +1731,7 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
                     {
                         visited[refi.Number] = 1;
                     }
+
                 }
             }
         }
