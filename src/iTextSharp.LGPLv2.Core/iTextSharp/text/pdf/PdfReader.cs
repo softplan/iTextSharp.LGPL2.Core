@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.util;
@@ -49,6 +48,7 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
     private int _iPRObjectDepth;
     private int _lastXrefPartial = -1;
     private int _objGen;
+    private readonly HashSet<int> _visitedXrefOffsets = new HashSet<int>();
 
     private int _objNum;
 
@@ -3977,15 +3977,14 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
         {
             return true;
         }
-
-        //before we go on, let's make sure we haven't done this a number of times that indicates a problematic recursion loop
-        if ((new StackTrace().GetFrames() ?? Array.Empty<StackFrame>()).Count(frame => frame.GetMethod().Name ==
-                nameof(ReadXRefStream)) > 200)
+        
+        if (_visitedXrefOffsets.Contains(ptr))
         {
-            _bBailout = true;
-
+            this._bBailout = true;
             throw new InvalidOperationException("Likely recursion loop issue.");
         }
+        
+        _visitedXrefOffsets.Add(ptr);
 
         return ReadXRefStream(prev);
     }
