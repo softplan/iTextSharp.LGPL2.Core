@@ -1,3 +1,5 @@
+						 
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.util;
@@ -48,12 +50,12 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
     private int _iPRObjectDepth;
     private int _lastXrefPartial = -1;
     private int _objGen;
-    private readonly HashSet<int> _visitedXrefOffsets = new HashSet<int>();
+    private readonly HashSet<int> _visitedXrefOffsets = new();
 
     private int _objNum;
 
     //added by Aiken Sam for certificate decryption
-    //added by Aiken Sam for certificate decryption
+												   
     private bool _ownerPasswordUsed;
 
     /// <summary>
@@ -552,6 +554,11 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
     /// </summary>
     /// <returns>the PDF version</returns>
     public char PdfVersion => pdfVersion;
+
+    /// <summary>
+    ///     The encryption key for the owner
+    /// </summary>
+    internal byte[] OwnerKey = new byte[32];
 
     /// <summary>
     ///     Gets the encryption permissions. It can be used directly in
@@ -1731,7 +1738,6 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
                     {
                         visited[refi.Number] = 1;
                     }
-
                 }
             }
         }
@@ -2483,7 +2489,7 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
         {
             for (var k = 1; k < hits.Length; ++k)
             {
-                if (!hits[k] && k * 2 + 1 < Xref.Length)
+                if (!hits[k])
                 {
                     Xref[k * 2] = -1;
                     Xref[k * 2 + 1] = 0;
@@ -3277,6 +3283,14 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
 
         pageRefs = new PageRefs(this);
     }
+	
+	private bool HasRootPage()
+    {
+        var type = _rootPages.Get(PdfName.TYPE);
+        var types = _rootPages.Get(PdfName.TYPES);
+
+        return PdfName.Pages.Equals(type) || PdfName.Pages.Equals(types);
+    }
 
     protected internal virtual void ReadPdf()
     {
@@ -3978,13 +3992,15 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
             return true;
         }
         
-        if (_visitedXrefOffsets.Contains(ptr))
+        //before we go on, let's make sure we haven't done this a number of times that indicates a problematic recursion loop
+        if ((new StackTrace().GetFrames() ?? Array.Empty<StackFrame>()).Count(frame
+                => string.Equals(frame.GetMethod().Name, nameof(ReadXRefStream), StringComparison.Ordinal)) > 200)
+																				   
+																												  
         {
             this._bBailout = true;
             throw new InvalidOperationException("Likely recursion loop issue.");
         }
-        
-        _visitedXrefOffsets.Add(ptr);
 
         return ReadXRefStream(prev);
     }
@@ -4115,9 +4131,9 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
             object[] objs = null;
             var idx = 0;
 
-            if (current is PdfObject)
+            if (current is PdfObject pdfObject)
             {
-                obj = (PdfObject)current;
+                obj = pdfObject;
 
                 switch (obj.Type)
                 {
@@ -4136,7 +4152,7 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
                         var refi = (PrIndirectReference)obj;
                         var num = refi.Number;
 
-                        if (num > 0 && num < _xrefObj.Count && !hits[num])
+                        if (num > 0 && !hits[num])
                         {
                             hits[num] = true;
                             state.Push(GetPdfObjectRelease(refi));
@@ -4543,6 +4559,16 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
                     }
 
                     break;
+                case 5:
+                    cryptoMode = PdfWriter.ENCRYPTION_AES_256;
+                    var em5 = enc.Get(PdfName.Encryptmetadata);
+
+                    if (em5 != null && em5.ToString().Equals(value: "false", StringComparison.Ordinal))
+                    {
+                        cryptoMode |= PdfWriter.DO_NOT_ENCRYPT_METADATA;
+                    }
+
+                    break;
                 case 6:
                     cryptoMode = PdfWriter.ENCRYPTION_AES_256_V3;
                     em = enc.Get(PdfName.Encryptmetadata);
@@ -4600,6 +4626,7 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
 
                     break;
                 case 4:
+                case 5:
                     var dic = (PdfDictionary)enc.Get(PdfName.Cf);
 
                     if (dic == null)
@@ -4623,6 +4650,11 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
                     {
                         cryptoMode = PdfWriter.ENCRYPTION_AES_128;
                         lengthValue = 128;
+                    }
+                    else if (PdfName.AESV3.Equals(dic.Get(PdfName.Cfm)))
+                    {
+                        cryptoMode = PdfWriter.ENCRYPTION_AES_256;
+                        lengthValue = 256;
                     }
                     else
                     {
@@ -4665,11 +4697,17 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
             {
                 throw new UnsupportedPdfException("Bad certificate and key.");
             }
+            
+            var isAes256 = (cryptoMode & PdfWriter.ENCRYPTION_MASK) == PdfWriter.ENCRYPTION_AES_256;
 
 #if NET40
+            HashAlgorithm hashAlgorithm =
+                isAes256 ? new SHA256CryptoServiceProvider() : new SHA1CryptoServiceProvider();
+
             using (var sh = new SHA1CryptoServiceProvider())
             {
                 sh.TransformBlock(envelopedData, 0, 20, envelopedData, 0);
+
                 for (var i = 0; i < recipients.Size; i++)
                 {
                     var encodedRecipient = recipients[i].GetBytes();
@@ -4711,27 +4749,13 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
 
         if (filter.Equals(PdfName.Standard))
         {
-            if (RValue < 6)
+            if (RValue == 5)
             {
-                //check by owner password
-                decrypt.SetupByOwnerPassword(documentId, Password, uValue, oValue, PValue);
-
-                if (!equalsArray(uValue, decrypt.UserKey, RValue == 3 || RValue == 4 ? 16 : 32))
-                {
-                    //check by user password
-                    decrypt.SetupByUserPassword(documentId, Password, oValue, PValue);
-
-                    if (!equalsArray(uValue, decrypt.UserKey, RValue == 3 || RValue == 4 ? 16 : 32))
-                    {
-                        throw new BadPasswordException("Bad user password");
-                    }
-                }
-                else
-                {
-                    _ownerPasswordUsed = true;
-                }
+                _ownerPasswordUsed = decrypt.ReadAES256Key(enc, Password);
+                decrypt.DocumentId = documentId;
+                PValue = decrypt.GetPermissions();
             }
-            else
+            else if (RValue == 6)
             {
                 // implements Algorithm 2.A: Retrieving the file encryption key from an encrypted document in order to decrypt it (revision 6 and later) - ISO 32000-2 section 7.6.4.3.3
                 s = enc.Get(PdfName.UE).ToString();
@@ -4802,10 +4826,40 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
 
                 PValue = decrypt.Permissions;
             }
+            else 
+			{
+                //check by owner password
+                decrypt.SetupByOwnerPassword(documentId, Password, uValue, oValue, PValue);
+
+                if (!equalsArray(uValue, decrypt.UserKey, RValue == 3 || RValue == 4 ? 16 : 32))
+                {
+                    //check by user password
+                    decrypt.SetupByUserPassword(documentId, Password, oValue, PValue);
+
+                    if (!equalsArray(uValue, decrypt.UserKey, RValue == 3 || RValue == 4 ? 16 : 32))
+                    {
+                        throw new BadPasswordException("Bad user password");
+                    }
+                }
+                else
+                {
+                    _ownerPasswordUsed = true;
+                }
+            }
         }
         else if (filter.Equals(PdfName.Pubsec))
         {
-            decrypt.SetupByEncryptionKey(encryptionKey, lengthValue);
+			decrypt.DocumentId = documentId;
+
+            if ((cryptoMode & PdfWriter.ENCRYPTION_MASK) == PdfWriter.ENCRYPTION_AES_256)
+            {
+                decrypt.SetKey(encryptionKey);
+            }
+            else
+            {
+                decrypt.SetupByEncryptionKey(encryptionKey, lengthValue);
+            }
+
             _ownerPasswordUsed = true;
         }
 

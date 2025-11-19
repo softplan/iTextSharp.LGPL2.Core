@@ -14,10 +14,17 @@ namespace iTextSharp.text.pdf;
 /// </summary>
 public class PdfEncryption
 {
-    public const int AES_128 = 4;
-    public const int STANDARD_ENCRYPTION_128 = 3;
-    public const int AES_256_V3 = 6;
     public const int STANDARD_ENCRYPTION_40 = 2;
+    public const int STANDARD_ENCRYPTION_128 = 3;
+    public const int AES_128 = 4;
+    public const int AES_256 = 5;
+    public const int AES_256_V3 = 6;
+    
+    private const int VALIDATION_SALT_OFFSET = 32;
+    private const int KEY_SALT_OFFSET = 40;
+    private const int SALT_LENGHT = 8;
+    private const int OU_LENGHT = 48;
+    
     internal static readonly byte[] MetadataPad = { 255, 255, 255, 255 };
 
     internal static long Seq = DateTime.Now.Ticks + Environment.TickCount;
@@ -483,6 +490,11 @@ public class PdfEncryption
                 _keyLength = 128;
                 _revision = AES_128;
                 break;
+            case PdfWriter.ENCRYPTION_AES_256:
+                _keyLength = 256;
+                KeySize = 32;
+                _revision = AES_256;
+                break;
             case PdfWriter.ENCRYPTION_AES_256_V3:
                 _keyLength = 256;
                 KeySize = 32;
@@ -496,7 +508,7 @@ public class PdfEncryption
 
     public void SetHashKey(int number, int generation)
     {
-        if (_revision >= AES_256_V3)
+        if (_revision is AES_256 or AES_256_V3)
         {
             return;
         }
@@ -563,6 +575,8 @@ public class PdfEncryption
         }
     }
 
+    public void SetKey(byte[] key) => Key = key;
+    
     public void SetupByEncryptionKey(byte[] key, int keyLength)
     {
         Mkey = new byte[keyLength / 8];
@@ -585,6 +599,89 @@ public class PdfEncryption
         SetupByUserPad(documentId, PadPassword(userPassword), ownerKey, permissions);
     }
 
+    public bool ReadAES256Key(PdfDictionary enc, byte[] password)
+    {
+        if (enc == null)
+        {
+            throw new ArgumentNullException(nameof(enc));
+        }
+
+        password ??= [];
+
+        var oValue = DocWriter.GetIsoBytes(enc.Get(PdfName.O).ToString());
+        var uValue = DocWriter.GetIsoBytes(enc.Get(PdfName.U).ToString());
+        var oeValue = DocWriter.GetIsoBytes(enc.Get(PdfName.OE).ToString());
+        var ueValue = DocWriter.GetIsoBytes(enc.Get(PdfName.UE).ToString());
+        var perms = DocWriter.GetIsoBytes(enc.Get(PdfName.Perms).ToString());
+
+        var pValue = (PdfNumber)enc.Get(PdfName.P);
+
+        _oeKey = oeValue;
+        _ueKey = ueValue;
+        _perms = perms;
+
+        OwnerKey = oValue;
+        UserKey = uValue;
+
+        Permissions = pValue.IntValue;
+
+        var md = DigestUtilities.GetDigest(algorithm: "SHA-256");
+        md.BlockUpdate(password, inOff: 0, Math.Min(password.Length, val2: 127));
+        md.BlockUpdate(oValue, VALIDATION_SALT_OFFSET, SALT_LENGHT);
+        md.BlockUpdate(uValue, inOff: 0, OU_LENGHT);
+        var hash = DigestUtilities.DoFinal(md);
+        var isOwnerPass = AreEqualArrays(hash, oValue, len: 32);
+
+        if (isOwnerPass)
+        {
+            md.BlockUpdate(password, inOff: 0, Math.Min(password.Length, val2: 127));
+            md.BlockUpdate(oValue, KEY_SALT_OFFSET, SALT_LENGHT);
+            md.BlockUpdate(uValue, inOff: 0, OU_LENGHT);
+            md.DoFinal(hash, outOff: 0);
+            Key = AesCbcNoPadding.ProcessBlock(forEncryption: false, hash, oeValue, inOff: 0, oeValue.Length);
+        }
+        else
+        {
+            md.BlockUpdate(password, inOff: 0, Math.Min(password.Length, val2: 127));
+            md.BlockUpdate(uValue, VALIDATION_SALT_OFFSET, SALT_LENGHT);
+            md.DoFinal(hash, outOff: 0);
+            var isUserPass = AreEqualArrays(hash, uValue, len: 32);
+
+            if (!isUserPass)
+            {
+                throw new BadPasswordException(message: "Bad user password");
+            }
+
+            md.BlockUpdate(password, inOff: 0, Math.Min(password.Length, val2: 127));
+            md.BlockUpdate(uValue, KEY_SALT_OFFSET, SALT_LENGHT);
+            md.DoFinal(hash, outOff: 0);
+
+            Key = AesCbcNoPadding.ProcessBlock(forEncryption: false, hash, ueValue, inOff: 0, ueValue.Length);
+        }
+
+        if (!DecryptAndCheckPerms(perms))
+        {
+            throw new BadPasswordException(message: "Bad user password");
+        }
+
+        return isOwnerPass;
+    }
+    
+    public int GetPermissions() => Permissions;
+    
+    private static bool AreEqualArrays(byte[] a, byte[] b, int len)
+    {
+        for (var k = 0; k < len; ++k)
+        {
+            if (a[k] != b[k])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+    
     /// <summary>
     /// </summary>
     private byte[] ComputeOwnerKey(byte[] userPad, byte[] ownerPad)
