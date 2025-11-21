@@ -36,7 +36,7 @@
       <None Update="iTextExamples\resources\pdfs\pdf_com_imagem_corrompida.pdf">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Update="iTextExamples\resources\pdfs\pdf_RC5_encryptation.pdf">
+      <None Update="iTextExamples\resources\pdfs\pdf_RC5_encryption.pdf">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
     </ItemGroup>
