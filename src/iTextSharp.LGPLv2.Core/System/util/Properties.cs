@@ -108,7 +108,7 @@ public class Properties
                             }
                         }
 
-                        nextLine = nextLine.Substring(startIndex, nextLine.Length - startIndex);
+                        nextLine = nextLine.Substring(startIndex);
                         line = loppedLine + nextLine;
                         len = line.Length;
                     }
