@@ -4543,6 +4543,7 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
                     }
 
                     break;
+                case 5:
                 case 6:
                     cryptoMode = PdfWriter.ENCRYPTION_AES_256_V3;
                     em = enc.Get(PdfName.Encryptmetadata);
@@ -4711,7 +4712,7 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
 
         if (filter.Equals(PdfName.Standard))
         {
-            if (RValue < 6)
+            if (RValue < 5)
             {
                 //check by owner password
                 decrypt.SetupByOwnerPassword(documentId, Password, uValue, oValue, PValue);
@@ -4765,13 +4766,17 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
                     uValue = uValue.CopyOf(48);
                 }
 
-                // step c of Algorithm 2.A
-                var hashAlg2B = PdfEncryption.HashAlg2B(password, oValue.CopyOfRange(32, 40), uValue);
+                // step c of Algorithm 2.A — R=5 usa SHA-256 simples; R>=6 usa Algorithm 2.B (iterado)
+                byte[] HashAlg2A(byte[] inp, byte[] salt, byte[] uk) => RValue == 5
+                    ? PdfEncryption.HashAlg2A_R5(inp, salt, uk)
+                    : PdfEncryption.HashAlg2B(inp, salt, uk);
+
+                var hashAlg2B = HashAlg2A(password, oValue.CopyOfRange(32, 40), uValue);
 
                 if (equalsArray(hashAlg2B, oValue, 32))
                 {
                     // step d of Algorithm 2.A
-                    decrypt.SetupByOwnerPassword(documentId, password, uValue, ueValue, oValue, oeValue, PValue);
+                    decrypt.SetupByOwnerPassword(documentId, password, uValue, ueValue, oValue, oeValue, PValue, RValue);
 
                     // step f of Algorithm 2.A
                     if (decrypt.DecryptAndCheckPerms(permsValue))
@@ -4783,7 +4788,7 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
                 if (!_ownerPasswordUsed)
                 {
                     // analog of step c of Algorithm 2.A for user password
-                    hashAlg2B = PdfEncryption.HashAlg2B(password, uValue.CopyOfRange(32, 40), null);
+                    hashAlg2B = HashAlg2A(password, uValue.CopyOfRange(32, 40), null);
 
                     if (!equalsArray(hashAlg2B, uValue, 32))
                     {
@@ -4791,7 +4796,7 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
                     }
 
                     // step e of Algorithm 2.A
-                    decrypt.SetupByUserPassword(documentId, password, uValue, ueValue, oValue, oeValue, PValue);
+                    decrypt.SetupByUserPassword(documentId, password, uValue, ueValue, oValue, oeValue, PValue, RValue);
 
                     // step f of Algorithm 2.A
                     if (!decrypt.DecryptAndCheckPerms(permsValue))
