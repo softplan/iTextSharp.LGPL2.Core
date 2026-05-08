@@ -151,11 +151,6 @@ public class PdfWriter : DocWriter, IPdfViewerPreferences, IPdfEncryptionSetting
     /// <summary>
     ///     Type of encryption
     /// </summary>
-    public const int ENCRYPTION_AES_256 = 3;
-    
-    /// <summary>
-    ///     Type of encryption
-    /// </summary>
     public const int ENCRYPTION_AES_256_V3 = 4;
 
     /// <summary>
