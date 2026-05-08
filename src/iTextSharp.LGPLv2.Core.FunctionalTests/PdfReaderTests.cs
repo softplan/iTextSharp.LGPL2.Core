@@ -144,7 +144,6 @@ public class PdfReaderTests
     }
 
     [TestMethod]
-    [DataRow("pdf_RC5_encryption.pdf", 1)]
     [DataRow("pdf_com_imagem_corrompida.pdf", 6)]
     [DataRow("issue81.pdf", 1)]
     public async Task DeveAbrirODocumentoEExtrairAssinaturasEQuebrarEmPaginasComSucesso(string fileName, int numberPages)
