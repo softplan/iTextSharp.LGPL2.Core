@@ -91,6 +91,11 @@ public class PdfReaderInstance
 
     internal PdfImportedPage GetImportedPage(int pageNumber)
     {
+        if (!reader.IsOpenedWithFullPermissions)
+        {
+            throw new ArgumentException("PdfReader not opened with owner password");
+        }
+
         if (pageNumber < 1 || pageNumber > reader.NumberOfPages)
         {
             throw new ArgumentException("Invalid page number: " + pageNumber);

@@ -2,7 +2,6 @@
     <PropertyGroup>
         <VersionPrefix>1.0.0.0</VersionPrefix>
         <LangVersion>latest</LangVersion>
-        <NoWarn>$(NoWarn);CA1859</NoWarn>
         <TargetFramework>net8.0</TargetFramework>
         <AssemblyName>iTextSharp.LGPLv2.Core.FunctionalTests</AssemblyName>
         <PackageId>iTextSharp.LGPLv2.Core.FunctionalTests</PackageId>
@@ -34,9 +33,6 @@
     </ItemGroup>
     <ItemGroup>
       <None Update="iTextExamples\resources\pdfs\pdf_com_imagem_corrompida.pdf">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="iTextExamples\resources\pdfs\pdf_RC5_encryption.pdf">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
     </ItemGroup>
