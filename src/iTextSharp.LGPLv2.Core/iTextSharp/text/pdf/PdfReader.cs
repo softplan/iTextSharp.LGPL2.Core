@@ -4771,9 +4771,9 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
                     ? PdfEncryption.HashAlg2A_R5(inp, salt, uk)
                     : PdfEncryption.HashAlg2B(inp, salt, uk);
 
-                var hashAlg2B = HashAlg2A(password, oValue.CopyOfRange(32, 40), uValue);
+                var hashAlg2A = HashAlg2A(password, oValue.CopyOfRange(32, 40), uValue);
 
-                if (equalsArray(hashAlg2B, oValue, 32))
+                if (equalsArray(hashAlg2A, oValue, 32))
                 {
                     // step d of Algorithm 2.A
                     decrypt.SetupByOwnerPassword(documentId, password, uValue, ueValue, oValue, oeValue, PValue, RValue);
@@ -4788,9 +4788,9 @@ public class PdfReader : IPdfViewerPreferences, IDisposable
                 if (!_ownerPasswordUsed)
                 {
                     // analog of step c of Algorithm 2.A for user password
-                    hashAlg2B = HashAlg2A(password, uValue.CopyOfRange(32, 40), null);
+                    hashAlg2A = HashAlg2A(password, uValue.CopyOfRange(32, 40), null);
 
-                    if (!equalsArray(hashAlg2B, uValue, 32))
+                    if (!equalsArray(hashAlg2A, uValue, 32))
                     {
                         throw new BadPasswordException("Bad user password");
                     }
