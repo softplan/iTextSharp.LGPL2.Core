@@ -35,5 +35,17 @@
       <None Update="iTextExamples\resources\pdfs\pdf_com_imagem_corrompida.pdf">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+      <None Update="iTextExamples\resources\pdfs\pdf_RC5_encryption.pdf">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="iTextExamples\resources\pdfs\pdf_RC5_encryption_2.pdf">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="iTextExamples\resources\pdfs\pdf_RC5_encryption_owner_readonly_2pages.pdf">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="iTextExamples\resources\pdfs\pdf_RC5_encryption_2pages.pdf">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 </Project>

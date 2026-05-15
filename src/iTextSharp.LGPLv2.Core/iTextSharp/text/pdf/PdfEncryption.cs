@@ -768,13 +768,26 @@ public class PdfEncryption
                                      byte[] oValue,
                                      byte[] oeValue,
                                      int permissions)
+        => SetupByOwnerPassword(documentId, ownerPassword, uValue, ueValue, oValue, oeValue, permissions, 6);
+
+    public void SetupByOwnerPassword(byte[] documentId,
+                                     byte[] ownerPassword,
+                                     byte[] uValue,
+                                     byte[] ueValue,
+                                     byte[] oValue,
+                                     byte[] oeValue,
+                                     int permissions,
+                                     int rValue)
     {
         if (oeValue == null)
         {
             throw new ArgumentNullException(nameof(oeValue));
         }
 
-        var result = HashAlg2B(ownerPassword, oValue.CopyOfRange(40, 48), uValue);
+        var salt = oValue.CopyOfRange(40, 48);
+        var result = rValue == 5
+            ? HashAlg2A_R5(ownerPassword, salt, uValue)
+            : HashAlg2B(ownerPassword, salt, uValue);
         Key = AesCbcNoPadding.ProcessBlock(false, result, oeValue, 0, oeValue.Length);
         OwnerKey = oValue;
         UserKey = uValue;
@@ -793,13 +806,26 @@ public class PdfEncryption
                                     byte[] oValue,
                                     byte[] oeValue,
                                     int permissions)
+        => SetupByUserPassword(documentId, userPassword, uValue, ueValue, oValue, oeValue, permissions, 6);
+
+    public void SetupByUserPassword(byte[] documentId,
+                                    byte[] userPassword,
+                                    byte[] uValue,
+                                    byte[] ueValue,
+                                    byte[] oValue,
+                                    byte[] oeValue,
+                                    int permissions,
+                                    int rValue)
     {
         if (ueValue == null)
         {
             throw new ArgumentNullException(nameof(ueValue));
         }
 
-        var result = HashAlg2B(userPassword, uValue.CopyOfRange(40, 48), null);
+        var salt = uValue.CopyOfRange(40, 48);
+        var result = rValue == 5
+            ? HashAlg2A_R5(userPassword, salt, null)
+            : HashAlg2B(userPassword, salt, null);
         Key = AesCbcNoPadding.ProcessBlock(false, result, ueValue, 0, ueValue.Length);
         OwnerKey = oValue;
         UserKey = uValue;
@@ -823,6 +849,26 @@ public class PdfEncryption
                                            | ((decPerms[2] & 0xff) << 16) | ((decPerms[2] & 0xff) << 24);
         _encryptMetadata = decPerms[8] == (byte)'T';
         return decPerms[9] == (byte)'a' && decPerms[10] == (byte)'d' && decPerms[11] == (byte)'b';
+    }
+
+    /// <summary>
+    ///     Hash for revision 5 (PDF 1.7 ExtensionLevel 3 / Acrobat 9): plain SHA-256 over input || salt || userKey.
+    ///     R=6 substituiu por HashAlg2B (iterado) por questões de hardening.
+    /// </summary>
+    public static byte[] HashAlg2A_R5(byte[] input, byte[] salt, byte[] userKey)
+    {
+        if (input == null) throw new ArgumentNullException(nameof(input));
+        if (salt == null) throw new ArgumentNullException(nameof(salt));
+
+        var sha256 = DigestUtilities.GetDigest("SHA-256");
+        sha256.BlockUpdate(input, 0, input.Length);
+        sha256.BlockUpdate(salt, 0, salt.Length);
+        if (userKey != null && userKey.Length > 0)
+            sha256.BlockUpdate(userKey, 0, userKey.Length);
+
+        var k = new byte[sha256.GetDigestSize()];
+        sha256.DoFinal(k, 0);
+        return k;
     }
 
     /// <summary>
